@@ -1,0 +1,96 @@
+# Прототип: Laravel + Vue, отзывы с Яндекс.Карт.
+# Поднимает приложение, воркер очереди и MySQL.
+#
+#   docker compose up --build      → http://localhost:8080
+#   docker compose logs -f queue   → прогресс выгрузки отзывов
+
+services:
+    app:
+        build:
+            context: .
+        ports:
+            - "${APP_PORT:-8080}:8080"
+        environment:
+            APP_NAME: "Отзывы с Яндекс.Карт"
+            APP_ENV: production
+            APP_KEY: "${APP_KEY:?Сгенерируйте ключ: php artisan key:generate --show и положите в .env}"
+            APP_DEBUG: "false"
+            # Адрес задаётся здесь явно, чтобы локальный .env с APP_URL для
+            # artisan serve не подменял адрес в контейнере.
+            APP_URL: "http://localhost:${APP_PORT:-8080}"
+            # Sanctum включает сессию только для запросов «со своего» домена,
+            # домен он определяет по Origin/Referer.
+            SANCTUM_STATEFUL_DOMAINS: "localhost:${APP_PORT:-8080},127.0.0.1:${APP_PORT:-8080}"
+            APP_LOCALE: ru_RU
+
+            DB_CONNECTION: mysql
+            DB_HOST: db
+            DB_PORT: 3306
+            DB_DATABASE: "${DB_DATABASE:-reviews}"
+            DB_USERNAME: "${DB_USERNAME:-reviews}"
+            DB_PASSWORD: "${DB_PASSWORD:-secret}"
+
+            SESSION_DRIVER: database
+            CACHE_STORE: database
+            QUEUE_CONNECTION: database
+
+            SEED_USER_EMAIL: "${SEED_USER_EMAIL:-test@example.com}"
+            SEED_USER_PASSWORD: "${SEED_USER_PASSWORD:-password}"
+
+            # Настройки парсера: см. README, раздел про анти-бан.
+            YANDEX_MAPS_MAX_PAGES: "${YANDEX_MAPS_MAX_PAGES:-12}"
+            YANDEX_MAPS_THROTTLE_MIN_MS: "${YANDEX_MAPS_THROTTLE_MIN_MS:-250}"
+            YANDEX_MAPS_THROTTLE_MAX_MS: "${YANDEX_MAPS_THROTTLE_MAX_MS:-900}"
+            YANDEX_MAPS_CACHE_TTL: "${YANDEX_MAPS_CACHE_TTL:-900}"
+            YANDEX_MAPS_PROXIES: "${YANDEX_MAPS_PROXIES:-}"
+            YANDEX_MAPS_QUEUE: "${YANDEX_MAPS_QUEUE:-default}"
+        depends_on:
+            db:
+                condition: service_healthy
+
+    # Отдельный процесс под фоновые выгрузки: те же файлы, другая команда.
+    queue:
+        build:
+            context: .
+        command: ["php", "artisan", "queue:work", "--tries=3", "--timeout=600", "--max-time=3600"]
+        restart: unless-stopped
+        environment:
+            APP_ENV: production
+            APP_KEY: "${APP_KEY:?Сгенерируйте ключ: php artisan key:generate --show и положите в .env}"
+            # Миграции делает только веб-контейнер
+            RUN_MIGRATIONS: "false"
+            DB_CONNECTION: mysql
+            DB_HOST: db
+            DB_PORT: 3306
+            DB_DATABASE: "${DB_DATABASE:-reviews}"
+            DB_USERNAME: "${DB_USERNAME:-reviews}"
+            DB_PASSWORD: "${DB_PASSWORD:-secret}"
+            QUEUE_CONNECTION: database
+            CACHE_STORE: database
+            YANDEX_MAPS_MAX_PAGES: "${YANDEX_MAPS_MAX_PAGES:-12}"
+            YANDEX_MAPS_THROTTLE_MIN_MS: "${YANDEX_MAPS_THROTTLE_MIN_MS:-250}"
+            YANDEX_MAPS_THROTTLE_MAX_MS: "${YANDEX_MAPS_THROTTLE_MAX_MS:-900}"
+            YANDEX_MAPS_PROXIES: "${YANDEX_MAPS_PROXIES:-}"
+        depends_on:
+            app:
+                condition: service_started
+            db:
+                condition: service_healthy
+
+    db:
+        image: mysql:8.0
+        environment:
+            MYSQL_DATABASE: "${DB_DATABASE:-reviews}"
+            MYSQL_USER: "${DB_USERNAME:-reviews}"
+            MYSQL_PASSWORD: "${DB_PASSWORD:-secret}"
+            MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:-root}"
+        volumes:
+            - db-data:/var/lib/mysql
+        healthcheck:
+            test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${DB_ROOT_PASSWORD:-root}"]
+            interval: 5s
+            timeout: 5s
+            retries: 20
+
+volumes:
+    db-data:
