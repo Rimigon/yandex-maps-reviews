@@ -35,6 +35,10 @@ services:
             CACHE_STORE: database
             QUEUE_CONNECTION: database
 
+            # Заполните, если TLS терминируется на reverse proxy: без этого
+            # Laravel видит обычный http и не отмечает cookie сессии как Secure.
+            TRUSTED_PROXIES: "${DOCKER_TRUSTED_PROXIES:-}"
+
             SEED_USER_EMAIL: "${SEED_USER_EMAIL:-test@example.com}"
             SEED_USER_PASSWORD: "${SEED_USER_PASSWORD:-password}"
 
