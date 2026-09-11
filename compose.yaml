@@ -15,20 +15,21 @@ services:
             APP_ENV: production
             APP_KEY: "${APP_KEY:?Сгенерируйте ключ: php artisan key:generate --show и положите в .env}"
             APP_DEBUG: "false"
-            # Адрес задаётся здесь явно, чтобы локальный .env с APP_URL для
-            # artisan serve не подменял адрес в контейнере.
-            APP_URL: "http://localhost:${APP_PORT:-8080}"
-            # Sanctum включает сессию только для запросов «со своего» домена,
-            # домен он определяет по Origin/Referer.
-            SANCTUM_STATEFUL_DOMAINS: "localhost:${APP_PORT:-8080},127.0.0.1:${APP_PORT:-8080}"
+            # Адрес, по которому открывается приложение, и домен для сессионной
+            # аутентификации задаются в .env: без своего домена в
+            # SANCTUM_STATEFUL_DOMAINS вход возвращает 500 «Session store not set».
+            APP_URL: "${DOCKER_APP_URL:-http://localhost:8080}"
+            SANCTUM_STATEFUL_DOMAINS: "${DOCKER_SANCTUM_DOMAINS:-localhost:8080,127.0.0.1:8080}"
             APP_LOCALE: ru_RU
 
+            # Внутри compose база всегда MySQL из сервиса db: данные лежат в томе
+            # db-data и переживают пересборку контейнеров.
             DB_CONNECTION: mysql
             DB_HOST: db
             DB_PORT: 3306
-            DB_DATABASE: "${DB_DATABASE:-reviews}"
-            DB_USERNAME: "${DB_USERNAME:-reviews}"
-            DB_PASSWORD: "${DB_PASSWORD:-secret}"
+            DB_DATABASE: "${DOCKER_DB_DATABASE:-reviews}"
+            DB_USERNAME: "${DOCKER_DB_USERNAME:-reviews}"
+            DB_PASSWORD: "${DOCKER_DB_PASSWORD:-secret}"
 
             SESSION_DRIVER: database
             CACHE_STORE: database
@@ -62,9 +63,9 @@ services:
             DB_CONNECTION: mysql
             DB_HOST: db
             DB_PORT: 3306
-            DB_DATABASE: "${DB_DATABASE:-reviews}"
-            DB_USERNAME: "${DB_USERNAME:-reviews}"
-            DB_PASSWORD: "${DB_PASSWORD:-secret}"
+            DB_DATABASE: "${DOCKER_DB_DATABASE:-reviews}"
+            DB_USERNAME: "${DOCKER_DB_USERNAME:-reviews}"
+            DB_PASSWORD: "${DOCKER_DB_PASSWORD:-secret}"
             QUEUE_CONNECTION: database
             CACHE_STORE: database
             YANDEX_MAPS_MAX_PAGES: "${YANDEX_MAPS_MAX_PAGES:-12}"
@@ -80,10 +81,10 @@ services:
     db:
         image: mysql:8.0
         environment:
-            MYSQL_DATABASE: "${DB_DATABASE:-reviews}"
-            MYSQL_USER: "${DB_USERNAME:-reviews}"
-            MYSQL_PASSWORD: "${DB_PASSWORD:-secret}"
-            MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:-root}"
+            MYSQL_DATABASE: "${DOCKER_DB_DATABASE:-reviews}"
+            MYSQL_USER: "${DOCKER_DB_USERNAME:-reviews}"
+            MYSQL_PASSWORD: "${DOCKER_DB_PASSWORD:-secret}"
+            MYSQL_ROOT_PASSWORD: "${DOCKER_DB_ROOT_PASSWORD:-root}"
         volumes:
             - db-data:/var/lib/mysql
         healthcheck:
