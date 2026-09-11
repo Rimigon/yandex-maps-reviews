@@ -332,6 +332,61 @@ resources/js/                                    Vue SPA
 
 ---
 
+## Деплой на хостинг
+
+### Вариант 1: VPS с Docker (рекомендуемый)
+
+```bash
+# на сервере
+git clone <репозиторий> && cd yandex-maps-reviews
+cp .env.example .env
+php -r "echo 'APP_KEY=base64:'.base64_encode(random_bytes(32)).PHP_EOL;"   # или php artisan key:generate --show локально
+```
+
+В `.env` рядом с `compose.yaml` обязательно задать:
+
+```
+APP_KEY=base64:...
+APP_PORT=8080                       # порт, на который смотрит reverse proxy
+DB_ROOT_PASSWORD=<свой пароль>
+DB_PASSWORD=<свой пароль>
+```
+
+и в `compose.yaml` (или через переменные окружения) `SANCTUM_STATEFUL_DOMAINS` —
+домен, с которого открывается приложение, например `reviews.example.com`. Без
+этого Sanctum не включит сессию и вход вернёт 500.
+
+```bash
+docker compose up -d --build     # первый запуск: миграции и сидер выполняет контейнер app
+```
+
+Дальше смотрим в docker compose ps, чтобы `app`, `queue` и `db` были живы, и
+проверяем парсер: `docker compose exec app php artisan yandex:sync "<ссылка>"`.
+
+Для HTTPS — любой reverse proxy (Caddy или nginx + certbot) на порт `APP_PORT`.
+Если за прокси терминируется TLS, добавьте `APP_URL=https://домен` и, при
+нестандартной схеме, `TrustProxies` уже настроен на стандартные заголовки.
+
+Обновление версии: `git pull && docker compose up -d --build` (миграции применятся
+сами, сидер идемпотентный).
+
+### Вариант 2: обычный shared-хостинг (PHP + MySQL)
+
+```bash
+# локально
+composer install --no-dev --optimize-autoloader
+npm ci && npm run build     # public/build попадёт в архив
+```
+
+Дальше выгрузка файлов (без `node_modules`, `.env`, `tests`), на сервере:
+создать БД и `.env` (`APP_ENV=production`, `APP_DEBUG=false`,
+`QUEUE_CONNECTION=database`, `SANCTUM_STATEFUL_DOMAINS=<домен>`), затем
+`php artisan migrate --force && php artisan db:seed --force`. Воркер очереди
+запускается cron-ом (`php artisan queue:work --stop-when-empty`) — на
+shared-хостинге постоянный процесс обычно держать нельзя.
+
+---
+
 ## Что доделал бы, имея больше времени
 
 1. **Ротация прокси с учётом блокировок** — сейчас прокси выбирается случайно на
