@@ -29,6 +29,12 @@ class OrganizationApiTest extends TestCase
         $this->getJson('/api/user')->assertUnauthorized();
     }
 
+    public function test_неавторизованный_запрос_без_accept_тоже_получает_401_а_не_500(): void
+    {
+        // Обычный браузерный переход на /api/... не присылает Accept: application/json.
+        $this->get('/api/organizations')->assertUnauthorized();
+    }
+
     public function test_вход_и_выход(): void
     {
         $user = User::factory()->create(['email' => 'test@example.com', 'password' => 'password']);
