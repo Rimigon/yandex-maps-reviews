@@ -3,6 +3,7 @@
 namespace App\Services\YandexMaps;
 
 use App\Services\YandexMaps\Dto\ReviewPage;
+use App\Services\YandexMaps\Exceptions\LayoutChangedException;
 use App\Services\YandexMaps\Exceptions\YandexMapsException;
 use App\Services\YandexMaps\Parsing\OrgPageParser;
 use App\Services\YandexMaps\Parsing\ReviewsPayloadParser;
@@ -10,6 +11,7 @@ use App\Services\YandexMaps\Support\QuerySigner;
 use App\Services\YandexMaps\Support\YandexMapsUrl;
 use App\Services\YandexMaps\Transport\YandexMapsHttpClient;
 use Generator;
+use Psr\Log\LoggerInterface;
 
 /**
  * Работа с карточкой организации на Яндекс.Картах.
@@ -32,6 +34,7 @@ final class YandexMapsClient
         private readonly OrgPageParser $pageParser,
         private readonly ReviewsPayloadParser $reviewsParser,
         private readonly array $config = [],
+        private readonly ?LoggerInterface $logger = null,
     ) {}
 
     /**
@@ -77,13 +80,39 @@ final class YandexMapsClient
             $payload = $this->http->getJson($url, $query, $session->cookies, $session->profile, $session->referer);
 
             if (! ReviewsPayloadParser::isCsrfRotation($payload)) {
-                return $this->reviewsParser->parsePage($payload, $page);
+                return $this->parsePage($payload, $page);
             }
 
             $session->rotateCsrfToken((string) $payload['csrfToken']);
         }
 
         throw new YandexMapsException('Яндекс не принял csrf-токен за '.self::MAX_CSRF_ATTEMPTS.' попытки');
+    }
+
+    /**
+     * Разбор ответа с записью в лог того, что реально пришло.
+     *
+     * Когда структура ответа меняется, одного сообщения «нет блока data»
+     * мало: без тела ответа непонятно, это новая разметка, HTML-заглушка или
+     * страница проверки. Выдержка из ответа попадает в лог, а исключение
+     * уходит дальше без технических подробностей.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function parsePage(array $payload, int $page): ReviewPage
+    {
+        try {
+            return $this->reviewsParser->parsePage($payload, $page);
+        } catch (LayoutChangedException $exception) {
+            $this->logger?->error('Яндекс вернул ответ неожиданной структуры', [
+                'page' => $page,
+                'error' => $exception->getMessage(),
+                'response_keys' => array_keys($payload),
+                'response_excerpt' => mb_substr((string) json_encode($payload, JSON_UNESCAPED_UNICODE), 0, 1000),
+            ]);
+
+            throw $exception;
+        }
     }
 
     /**

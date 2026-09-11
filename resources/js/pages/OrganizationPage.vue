@@ -179,36 +179,39 @@ onBeforeUnmount(stopPolling);
                 <h2 class="text-base font-medium text-slate-900">История выгрузок</h2>
                 <p class="mt-1 text-sm text-slate-500">Что изменилось между парсингами карточки.</p>
 
-                <table class="mt-4 w-full text-sm">
-                    <thead class="text-left text-xs uppercase tracking-wide text-slate-400">
-                        <tr>
-                            <th class="pb-2">Дата</th>
-                            <th class="pb-2">Рейтинг</th>
-                            <th class="pb-2">Оценок</th>
-                            <th class="pb-2">Отзывов</th>
-                            <th class="pb-2">Новых / обновлённых</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        <tr v-for="snapshot in snapshots" :key="snapshot.id">
-                            <td class="py-2 text-slate-500">{{ new Date(snapshot.captured_at).toLocaleString('ru-RU') }}</td>
-                            <td class="py-2">
-                                {{ snapshot.rating ?? '—' }}
-                                <span
-                                    v-if="snapshot.changes?.rating?.diff"
-                                    :class="snapshot.changes.rating.diff > 0 ? 'text-emerald-600' : 'text-red-600'"
-                                >
-                                    ({{ snapshot.changes.rating.diff > 0 ? '+' : '' }}{{ snapshot.changes.rating.diff }})
-                                </span>
-                            </td>
-                            <td class="py-2 text-slate-600">{{ snapshot.ratings_total }}</td>
-                            <td class="py-2 text-slate-600">{{ snapshot.reviews_total }}</td>
-                            <td class="py-2 text-slate-600">
-                                +{{ snapshot.changes?.reviews_added ?? 0 }} / {{ snapshot.changes?.reviews_updated ?? 0 }}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                <!-- На узких экранах таблица прокручивается внутри блока, а не растягивает страницу. -->
+                <div class="mt-4 overflow-x-auto">
+                    <table class="w-full min-w-[640px] text-sm">
+                        <thead class="text-left text-xs uppercase tracking-wide text-slate-400">
+                            <tr>
+                                <th class="pb-2">Дата</th>
+                                <th class="pb-2">Рейтинг</th>
+                                <th class="pb-2">Оценок</th>
+                                <th class="pb-2">Отзывов</th>
+                                <th class="pb-2">Новых / обновлённых</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr v-for="snapshot in snapshots" :key="snapshot.id">
+                                <td class="py-2 text-slate-500">{{ new Date(snapshot.captured_at).toLocaleString('ru-RU') }}</td>
+                                <td class="py-2">
+                                    {{ snapshot.rating ?? '—' }}
+                                    <span
+                                        v-if="snapshot.changes?.rating?.diff"
+                                        :class="snapshot.changes.rating.diff > 0 ? 'text-emerald-600' : 'text-red-600'"
+                                    >
+                                        ({{ snapshot.changes.rating.diff > 0 ? '+' : '' }}{{ snapshot.changes.rating.diff }})
+                                    </span>
+                                </td>
+                                <td class="py-2 text-slate-600">{{ snapshot.ratings_total }}</td>
+                                <td class="py-2 text-slate-600">{{ snapshot.reviews_total }}</td>
+                                <td class="py-2 text-slate-600">
+                                    +{{ snapshot.changes?.reviews_added ?? 0 }} / {{ snapshot.changes?.reviews_updated ?? 0 }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </section>
         </template>
     </div>

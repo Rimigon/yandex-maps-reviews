@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Services\YandexMaps\Dto\ReviewData;
 use App\Services\YandexMaps\Exceptions\BlockedException;
 use App\Services\YandexMaps\Exceptions\LayoutChangedException;
 use App\Services\YandexMaps\Parsing\ReviewsPayloadParser;
@@ -113,5 +114,58 @@ class ReviewsPayloadParserTest extends TestCase
                 ],
             ],
         ];
+    }
+
+    public function test_очищает_лишние_переводы_строк_в_тексте_отзыва(): void
+    {
+        // Яндекс отдаёт текст с хвостовыми переводами строк: в интерфейсе
+        // из-за них появлялись пустые блоки высотой в экран.
+        $review = ReviewData::fromApi([
+            'reviewId' => 'trimmed',
+            'author' => ['name' => 'Автор'],
+            'rating' => 5,
+            'text' => '
+Отзыв с хвостом
+
+
+
+',
+            'businessComment' => ['text' => 'Ответ компании
+  '],
+        ]);
+
+        $this->assertSame('Отзыв с хвостом', $review->text);
+        $this->assertSame('Ответ компании', $review->businessComment);
+        $this->assertSame('Отзыв с хвостом', $review->toRow()['text']);
+    }
+
+    public function test_сохраняет_осмысленные_переносы_внутри_текста(): void
+    {
+        $review = ReviewData::fromApi([
+            'reviewId' => 'multiline',
+            'author' => ['name' => 'Автор'],
+            'text' => 'Первая строка
+Вторая строка
+
+Новый абзац',
+        ]);
+
+        $this->assertSame('Первая строка
+Вторая строка
+
+Новый абзац', $review->text);
+    }
+
+    public function test_вместо_пробельного_текста_остаётся_пусто(): void
+    {
+        $review = ReviewData::fromApi([
+            'reviewId' => 'blank',
+            'author' => ['name' => 'Автор'],
+            'text' => '   
+
+  ',
+        ]);
+
+        $this->assertNull($review->text);
     }
 }

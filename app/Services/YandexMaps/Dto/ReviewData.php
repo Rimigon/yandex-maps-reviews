@@ -44,8 +44,8 @@ final class ReviewData
             authorName: self::string($author['name'] ?? null),
             authorAvatarUrl: self::string($author['avatarUrl'] ?? null),
             rating: is_numeric($raw['rating'] ?? null) ? (int) $raw['rating'] : null,
-            text: self::string($raw['text'] ?? null),
-            businessComment: self::string($comment['text'] ?? null),
+            text: self::text($raw['text'] ?? null),
+            businessComment: self::text($comment['text'] ?? null),
             likes: is_numeric($reactions['likes'] ?? null) ? (int) $reactions['likes'] : 0,
             dislikes: is_numeric($reactions['dislikes'] ?? null) ? (int) $reactions['dislikes'] : 0,
             isPinned: (bool) ($raw['pinned'] ?? false),
@@ -96,6 +96,29 @@ final class ReviewData
     private static function string(mixed $value): ?string
     {
         return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
+     * Текст отзыва или ответ компании.
+     *
+     * Яндекс отдаёт текст с переводами строк и хвостовыми пробелами: без
+     * очистки в интерфейсе появляются пустые абзацы, а иногда и целые пустые
+     * блоки высотой в экран. Обрезаем края, а длинные цепочки пустых строк
+     * схлопываем в один перевод — переносы внутри текста при этом сохраняются.
+     */
+    private static function text(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        return (string) preg_replace('/\n{3,}/u', "\n\n", $value);
     }
 
     private static function date(mixed $value): ?CarbonInterface

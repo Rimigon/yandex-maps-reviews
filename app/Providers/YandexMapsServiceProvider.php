@@ -41,6 +41,7 @@ class YandexMapsServiceProvider extends ServiceProvider
             pageParser: $app->make(OrgPageParser::class),
             reviewsParser: $app->make(ReviewsPayloadParser::class),
             config: $app->make(Repository::class)->get('yandex-maps'),
+            logger: $app->make(LoggerInterface::class),
         ));
     }
 }

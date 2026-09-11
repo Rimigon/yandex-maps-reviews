@@ -7,11 +7,13 @@ use App\Models\Organization;
 use App\Models\User;
 use App\Services\Sync\OrganizationSyncService;
 use App\Services\YandexMaps\Exceptions\BlockedException;
+use App\Services\YandexMaps\Exceptions\LayoutChangedException;
 use App\Services\YandexMaps\Exceptions\YandexMapsException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class OrganizationSyncTest extends TestCase
@@ -251,6 +253,36 @@ class OrganizationSyncTest extends TestCase
 
         $this->assertSame(SyncStatus::Failed, $organization->sync_status);
         $this->assertNotNull($organization->sync_error);
+    }
+
+    public function test_неожиданный_ответ_яндекса_попадает_в_лог_с_телом(): void
+    {
+        // Требование №1 из ТЗ: поломка должна быть видна. Одного текста ошибки
+        // мало, поэтому в лог пишется ещё и то, что реально пришло.
+        Log::spy();
+
+        $organization = $this->organization();
+
+        Http::fake([
+            'yandex.ru/maps/org/*' => Http::response($this->pageHtml(), 200),
+            'yandex.ru/maps/api/business/fetchReviews*' => Http::response(
+                ['unexpected' => 'структура ответа изменилась'],
+                200,
+            ),
+        ]);
+
+        try {
+            app(OrganizationSyncService::class)->sync($organization);
+            $this->fail('Ожидалась ошибка разбора');
+        } catch (LayoutChangedException) {
+            // ожидаемо
+        }
+
+        Log::shouldHaveReceived('error')
+            ->withArgs(fn (string $message, array $context = []) => $message === 'Яндекс вернул ответ неожиданной структуры'
+                && ($context['response_excerpt'] ?? null) !== null
+                && str_contains((string) $context['response_excerpt'], 'структура ответа изменилась'))
+            ->once();
     }
 
     public function test_блокировка_яндексом_не_выдаётся_за_пустой_список_отзывов(): void
