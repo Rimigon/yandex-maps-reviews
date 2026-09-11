@@ -35,6 +35,41 @@
 
 ---
 
+## Как это выглядит
+
+Скриншоты сняты на живых карточках: Яндекс (5859 отзывов на карточке, забрано
+600), Алёнка (928 / 600), Surf Coffee x Flow (638 / 600), Bash Coffee (71 / 71).
+
+**Вход и настройки**
+
+| Вход | Настройки: подключённые карточки |
+|---|---|
+| ![Вход](docs/screenshots/01-login.png) | ![Настройки](docs/screenshots/02-settings.png) |
+
+**Организация: рейтинг, счётчики и отзывы**
+
+| Страница организации | Отзыв с длинным текстом |
+|---|---|
+| ![Страница организации](docs/screenshots/03-organization.png) | ![Отзыв](docs/screenshots/04-review-text.png) |
+
+| Пагинация по 50 | История выгрузок |
+|---|---|
+| ![Пагинация](docs/screenshots/05-pagination.png) | ![История выгрузок](docs/screenshots/06-history.png) |
+
+**Состояния интерфейса**
+
+| Выгрузка идёт (прогресс в очереди) | Ошибка валидации ссылки |
+|---|---|
+| ![Прогресс выгрузки](docs/screenshots/07-sync-progress.png) | ![Ошибка валидации](docs/screenshots/08-validation-error.png) |
+
+**На телефоне**
+
+| Настройки | Страница организации |
+|---|---|
+| ![Мобильные настройки](docs/screenshots/10-mobile-settings.png) | ![Мобильная организация](docs/screenshots/09-mobile-organization.png) |
+
+---
+
 ## Как парсим Яндекс.Карты
 
 ### Почему не сразу headless-браузер
@@ -403,6 +438,7 @@ app/
 browser-fallback/                                Node-скрипт и его самопроверка
 resources/js/                                    Vue SPA
 Dockerfile, compose.yaml, docker/entrypoint.sh   запуск на сервере
+docs/screenshots/                               скриншоты интерфейса для README
 tests/Unit, tests/Feature, tests/Fixtures       тесты и образцы страниц
 ```
 
