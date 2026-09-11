@@ -266,6 +266,12 @@ php artisan queue:work   # воркер очереди, без него выгр
 Логин и пароль печатает сидер (`SEED_USER_EMAIL` / `SEED_USER_PASSWORD`,
 по умолчанию `test@example.com` / `password`).
 
+Если меняете порт (`php artisan serve --port=8140`), добавьте его в
+`SANCTUM_STATEFUL_DOMAINS` и поправьте `APP_URL`: Sanctum включает сессию только
+для перечисленных адресов, иначе вход вернёт 500 «Session store not set on
+request». Второй хост-вариант (`localhost` и `127.0.0.1` — это разные адреса
+для Sanctum) в файле уже учтён.
+
 ### Запуск через docker-compose
 
 ```bash
@@ -331,7 +337,7 @@ php artisan test
 | `YANDEX_MAPS_CACHE_TTL` | сколько секунд считать данные свежими (повторный парсинг без `force` не запускается) |
 | `YANDEX_MAPS_QUEUE` | имя очереди для выгрузок |
 | `YANDEX_MAPS_BROWSER_FALLBACK` | включает запасной сбор браузером |
-| `SANCTUM_STATEFUL_DOMAINS` | домены, для которых Sanctum включает сессию; нужен локальному запуску (по умолчанию `localhost:8000`) |
+| `SANCTUM_STATEFUL_DOMAINS` | домены для сессионной аутентификации; в файле по умолчанию перечислены локальные адреса и порт Vite. Запускаете на другом порту — добавьте его сюда |
 | `TRUSTED_PROXIES` | адреса reverse proxy (или `*`), если TLS заканчивается на нём; иначе Laravel видит http |
 | `APP_PORT`, `DOCKER_APP_URL`, `DOCKER_SANCTUM_DOMAINS`, `DOCKER_TRUSTED_PROXIES`, `DOCKER_DB_*` | читает только docker compose; подробно — в разделе «Деплой на хостинг» |
 
@@ -389,7 +395,7 @@ php -r "echo 'APP_KEY=base64:'.base64_encode(random_bytes(32)).PHP_EOL;"   # и�
 APP_KEY=base64:...
 APP_PORT=8080                       # порт, на который смотрит reverse proxy
 DOCKER_APP_URL=https://reviews.example.com
-DOCKER_SANCTUM_DOMAINS=reviews.example.com
+DOCKER_SANCTUM_DOMAINS=reviews.example.com   # необязательно: по умолчанию берётся из DOCKER_APP_URL
 DOCKER_TRUSTED_PROXIES=*            # если TLS заканчивается на вашем nginx/Caddy
 DOCKER_DB_PASSWORD=<свой пароль>
 DOCKER_DB_ROOT_PASSWORD=<свой пароль>
@@ -397,7 +403,8 @@ DOCKER_DB_ROOT_PASSWORD=<свой пароль>
 
 `DOCKER_APP_URL` и `DOCKER_SANCTUM_DOMAINS` — не то же самое, что `APP_URL` и
 `SANCTUM_STATEFUL_DOMAINS` выше по файлу: первые читает только docker compose,
-вторые — локальный запуск. Без правильного домена в `DOCKER_SANCTUM_DOMAINS`
+вторые — локальный запуск. Главное здесь — `DOCKER_APP_URL`: именно из него
+подставляется адрес для сессионной аутентификации. Если домен не совпадёт,
 вход вернёт 500 «Session store not set on request»: Sanctum включает сессию
 только для запросов со своего домена и определяет его по Origin/Referer.
 Если к домену нестандартный порт, он входит в значение: `reviews.example.com:8080`.
@@ -476,7 +483,7 @@ npm ci && npm run build     # public/build попадёт в архив
 
 Дальше выгрузка файлов (без `node_modules`, `.env`, `tests`), на сервере:
 создать БД и `.env` (`APP_ENV=production`, `APP_DEBUG=false`,
-`QUEUE_CONNECTION=database`, `SANCTUM_STATEFUL_DOMAINS=<домен>`), затем
+`APP_URL=https://<домен>`, `QUEUE_CONNECTION=database`), затем
 `php artisan migrate --force && php artisan db:seed --force`. Воркер очереди
 запускается cron-ом (`php artisan queue:work --stop-when-empty`), либо оставьте
 `QUEUE_CONNECTION=sync`: тогда выгрузка идёт прямо в HTTP-запросе, и воркер не
@@ -509,6 +516,8 @@ npm ci && npm run build     # public/build попадёт в архив
 
 ## Состояние задания на текущий момент
 
+Репозиторий: https://github.com/Rimigon/yandex-maps-reviews
+
 Что готово: все функциональные требования и пункты 1–5 «Дополнительных
 требований» (см. выше). Что проверено прогоном: установка с нуля по этому README
 (клонирование репозитория, `composer install`, `npm ci`, миграции, сидер, сборка),
@@ -522,7 +531,5 @@ npm ci && npm run build     # public/build попадёт в архив
 
 - **Прототип на хостинге.** Инструкция по деплою есть, сам деплой не делался:
   ждём решение по серверу.
-- **Ссылка на Git-репозиторий.** Репозиторий инициализирован локально, удалённый
-  репозиторий не подключён (нужен доступ к аккаунту).
 - **Запасной сбор через браузер в docker-compose** не подключён: в образе нет
   Node с Chromium. Локально путь работает и проверен на живой карточке.
