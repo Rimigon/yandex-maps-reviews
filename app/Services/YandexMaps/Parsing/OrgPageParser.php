@@ -6,6 +6,7 @@ use App\Services\YandexMaps\Dto\OrganizationCard;
 use App\Services\YandexMaps\Dto\OrganizationPage;
 use App\Services\YandexMaps\Exceptions\BlockedException;
 use App\Services\YandexMaps\Exceptions\LayoutChangedException;
+use App\Services\YandexMaps\Exceptions\OrganizationNotFoundException;
 
 /**
  * Разбор HTML страницы карточки организации.
@@ -28,6 +29,16 @@ final class OrgPageParser
         'Подтвердите, что запросы отправляли вы',
     ];
 
+    /**
+     * Признаки того, что карточки по ссылке нет: Яндекс отдаёт на такую ссылку
+     * HTTP 200 и обычную страницу карт без данных организации. Без этой проверки
+     * «организация не найдена» выглядела бы как поломка парсера.
+     */
+    private const MISSING_ORGANIZATION_MARKERS = [
+        'Ничего не найдено',
+        'ничего не нашлось',
+    ];
+
     public function parse(string $html, string $pageUrl, ?string $expectedBusinessId = null): OrganizationPage
     {
         $state = $this->extractState($html);
@@ -36,6 +47,7 @@ final class OrgPageParser
         $card = $this->extractCard(
             state: $state,
             html: $html,
+            pageUrl: $pageUrl,
             expectedBusinessId: $expectedBusinessId,
         );
 
@@ -120,7 +132,7 @@ final class OrgPageParser
     /**
      * @param  array<string, mixed>  $state
      */
-    private function extractCard(array $state, string $html, ?string $expectedBusinessId): OrganizationCard
+    private function extractCard(array $state, string $html, string $pageUrl, ?string $expectedBusinessId): OrganizationCard
     {
         $node = $this->findBusinessNode($state);
         $ratingData = is_array($node['ratingData'] ?? null) ? $node['ratingData'] : [];
@@ -129,16 +141,22 @@ final class OrgPageParser
             ?? $this->string($node['id'] ?? null)
             ?? $expectedBusinessId;
 
-        if ($businessId === null) {
-            throw LayoutChangedException::forPage('не удалось определить id организации');
-        }
-
         $rating = $this->float($ratingData['ratingValue'] ?? null) ?? $this->microdata($html, 'ratingValue');
         $ratingsTotal = $this->int($ratingData['ratingCount'] ?? null) ?? $this->microdata($html, 'ratingCount');
         $reviewsTotal = $this->int($ratingData['reviewCount'] ?? null) ?? $this->microdata($html, 'reviewCount');
 
         if ($rating === null && $ratingsTotal === null && $reviewsTotal === null) {
+            // Данных организации на странице нет вообще. Это либо отсутствующая
+            // карточка, либо новая разметка — различаем по признакам страницы.
+            if ($this->looksLikeMissingOrganization($html)) {
+                throw OrganizationNotFoundException::forUrl($pageUrl);
+            }
+
             throw LayoutChangedException::forPage('в разметке нет рейтинга и счётчиков отзывов');
+        }
+
+        if ($businessId === null) {
+            throw LayoutChangedException::forPage('не удалось определить id организации');
         }
 
         return new OrganizationCard(
@@ -202,6 +220,17 @@ final class OrgPageParser
     {
         foreach (self::CAPTCHA_MARKERS as $marker) {
             if (str_contains($html, $marker)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function looksLikeMissingOrganization(string $html): bool
+    {
+        foreach (self::MISSING_ORGANIZATION_MARKERS as $marker) {
+            if (mb_stripos($html, $marker) !== false) {
                 return true;
             }
         }

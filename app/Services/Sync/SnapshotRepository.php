@@ -36,14 +36,16 @@ final class SnapshotRepository
     }
 
     /**
-     * @return array{from: float|int|string|null, to: float|int|string|null, diff: float|int}
+     * @return array{from: float|int|string|null, to: float|int|string|null, diff: float|int|null}
      */
     private function delta(float|int|string|null $from, float|int|string|null $to): array
     {
         return [
             'from' => $from,
             'to' => $to,
-            'diff' => round((float) $to - (float) $from, 2),
+            // У первой выгрузки сравнивать не с чем: показывать рост «с нуля»
+            // как изменение рейтинга нельзя.
+            'diff' => $from === null ? null : round((float) $to - (float) $from, 2),
         ];
     }
 }

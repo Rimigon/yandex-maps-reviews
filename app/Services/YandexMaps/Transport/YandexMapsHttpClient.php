@@ -83,9 +83,11 @@ final class YandexMapsHttpClient
         $attempts = max(1, (int) ($this->config['retry']['times'] ?? 3));
         $sleepMs = (int) ($this->config['retry']['sleep_ms'] ?? 800);
         $error = null;
+        $details = [];
 
         for ($attempt = 1; $attempt <= $attempts; $attempt++) {
             $this->throttle();
+            $details = [];
 
             try {
                 $response = $this->http
@@ -110,14 +112,15 @@ final class YandexMapsHttpClient
                     return $response;
                 }
 
-                $error = new YandexMapsException(sprintf(
-                    'Яндекс.Карты ответили HTTP %d на запрос %s: %s',
-                    $response->status(),
-                    $url,
-                    mb_substr(trim($response->body()), 0, 500),
-                ));
+                // Пользователю — понятный текст, разработчику — тело ответа в логе.
+                $details = [
+                    'status' => $response->status(),
+                    'body' => mb_substr(trim($response->body()), 0, 500),
+                ];
+                $error = new YandexMapsException("Яндекс.Карты ответили HTTP {$response->status()} на запрос к {$url}");
             } catch (ConnectionException $exception) {
-                $error = new YandexMapsException("Не удалось соединиться с Яндекс.Картами: {$exception->getMessage()}", 0, $exception);
+                $details = ['reason' => $exception->getMessage()];
+                $error = new YandexMapsException("Не удалось соединиться с Яндекс.Картами: {$url}", 0, $exception);
             }
 
             $this->logger->warning('Запрос к Яндекс.Картам не удался', [
@@ -125,6 +128,7 @@ final class YandexMapsHttpClient
                 'attempt' => $attempt,
                 'attempts' => $attempts,
                 'error' => $error?->getMessage(),
+                ...$details,
             ]);
 
             if ($attempt < $attempts) {

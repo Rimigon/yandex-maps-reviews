@@ -56,7 +56,7 @@ final class ReviewRepository
             uniqueBy: ['organization_id', 'external_id'],
             update: [
                 'author_name', 'author_avatar_url', 'rating', 'text', 'business_comment',
-                'likes', 'dislikes', 'is_pinned', 'published_at', 'source_updated_at',
+                'likes', 'dislikes', 'is_pinned', 'source_updated_at',
                 'content_hash', 'updated_at',
             ],
         );

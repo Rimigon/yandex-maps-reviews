@@ -35,7 +35,7 @@ class ReviewsPayloadParserTest extends TestCase
         $this->assertSame(1, $first->rating);
         $this->assertSame(5, $first->likes);
         $this->assertSame('Спасибо, что сообщили.', $first->businessComment);
-        $this->assertSame('2026-08-04 13:07:09', $first->publishedAt?->toDateTimeString());
+        $this->assertSame('2026-08-04 13:07:09', $first->updatedAt?->toDateTimeString());
     }
 
     public function test_пустая_страница_не_считается_поломкой(): void

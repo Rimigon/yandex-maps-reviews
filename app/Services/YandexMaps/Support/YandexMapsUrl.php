@@ -37,30 +37,30 @@ final class YandexMapsUrl
 
     public static function parse(string $url): self
     {
-        $url = trim($url);
+        $input = trim($url);
 
-        if ($url === '') {
-            throw InvalidYandexMapsUrlException::notYandex($url);
+        if ($input === '') {
+            throw InvalidYandexMapsUrlException::notYandex($input);
         }
 
-        if (! preg_match('#^https?://#i', $url)) {
-            $url = 'https://'.$url;
-        }
+        // Схему дописываем для разбора, но в сообщениях об ошибке показываем
+        // то, что ввёл пользователь.
+        $normalizedInput = preg_match('#^https?://#i', $input) === 1 ? $input : 'https://'.$input;
 
-        $parts = parse_url($url);
+        $parts = parse_url($normalizedInput);
 
         if ($parts === false || ! isset($parts['host'])) {
-            throw InvalidYandexMapsUrlException::notYandex($url);
+            throw InvalidYandexMapsUrlException::notYandex($input);
         }
 
         $host = mb_strtolower($parts['host']);
         $path = $parts['path'] ?? '/';
 
         if (! preg_match(self::HOST_PATTERN, $host)) {
-            throw InvalidYandexMapsUrlException::notYandex($url);
+            throw InvalidYandexMapsUrlException::notYandex($input);
         }
 
-        [$basePath, $businessId, $isShortLink] = self::matchPath($path, $url);
+        [$basePath, $businessId, $isShortLink] = self::matchPath($path, $input);
 
         return new self(
             host: $host,
@@ -94,7 +94,7 @@ final class YandexMapsUrl
     /**
      * @return array{0: string, 1: string|null, 2: bool}
      */
-    private static function matchPath(string $path, string $url): array
+    private static function matchPath(string $path, string $input): array
     {
         if (preg_match(self::ORG_WITH_ID_PATTERN, $path, $matches) === 1) {
             return [$matches['base'], $matches['id'], false];
@@ -108,6 +108,6 @@ final class YandexMapsUrl
             return [$matches['base'], null, false];
         }
 
-        throw InvalidYandexMapsUrlException::notAnOrganizationPage($url);
+        throw InvalidYandexMapsUrlException::notAnOrganizationPage($input);
     }
 }

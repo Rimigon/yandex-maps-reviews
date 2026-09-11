@@ -22,7 +22,7 @@ class ReviewFactory extends Factory
         $text = fake()->paragraph();
         $rating = fake()->numberBetween(1, 5);
         $author = fake()->name();
-        $publishedAt = fake()->dateTimeBetween('-2 years');
+        $sourceUpdatedAt = fake()->dateTimeBetween('-2 years');
 
         return [
             'organization_id' => Organization::factory(),
@@ -35,8 +35,7 @@ class ReviewFactory extends Factory
             'likes' => fake()->numberBetween(0, 50),
             'dislikes' => 0,
             'is_pinned' => false,
-            'published_at' => $publishedAt,
-            'source_updated_at' => $publishedAt,
+            'source_updated_at' => $sourceUpdatedAt,
             'content_hash' => sha1("{$author}|{$rating}|{$text}"),
         ];
     }

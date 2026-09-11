@@ -23,7 +23,6 @@ class Review extends Model
         'likes',
         'dislikes',
         'is_pinned',
-        'published_at',
         'source_updated_at',
         'content_hash',
     ];
@@ -35,7 +34,6 @@ class Review extends Model
             'likes' => 'integer',
             'dislikes' => 'integer',
             'is_pinned' => 'boolean',
-            'published_at' => 'datetime',
             'source_updated_at' => 'datetime',
         ];
     }

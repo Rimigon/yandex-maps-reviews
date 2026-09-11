@@ -25,7 +25,9 @@ return new class extends Migration
             $table->unsignedInteger('dislikes')->default(0);
             $table->boolean('is_pinned')->default(false);
 
-            $table->timestamp('published_at')->nullable();
+            // Дата, которую отдаёт Яндекс. Отдельной даты создания отзыва в ответе
+            // нет, есть только updatedTime — время последнего изменения, его и
+            // показываем как дату отзыва (см. README).
             $table->timestamp('source_updated_at')->nullable();
 
             // Отпечаток изменяемых полей: по нему видно, изменился ли отзыв
@@ -35,7 +37,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['organization_id', 'external_id']);
-            $table->index(['organization_id', 'published_at']);
+            $table->index(['organization_id', 'source_updated_at']);
         });
     }
 

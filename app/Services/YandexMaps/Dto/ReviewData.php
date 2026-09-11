@@ -21,7 +21,7 @@ final class ReviewData
         public readonly int $likes,
         public readonly int $dislikes,
         public readonly bool $isPinned,
-        public readonly ?CarbonInterface $publishedAt,
+        public readonly ?CarbonInterface $updatedAt,
     ) {}
 
     /**
@@ -49,7 +49,7 @@ final class ReviewData
             likes: is_numeric($reactions['likes'] ?? null) ? (int) $reactions['likes'] : 0,
             dislikes: is_numeric($reactions['dislikes'] ?? null) ? (int) $reactions['dislikes'] : 0,
             isPinned: (bool) ($raw['pinned'] ?? false),
-            publishedAt: self::date($raw['updatedTime'] ?? null),
+            updatedAt: self::date($raw['updatedTime'] ?? null),
         );
     }
 
@@ -67,7 +67,7 @@ final class ReviewData
             (string) $this->likes,
             (string) $this->dislikes,
             (string) ($this->isPinned ? 1 : 0),
-            $this->publishedAt?->toIso8601String() ?? '',
+            $this->updatedAt?->toIso8601String() ?? '',
         ]));
     }
 
@@ -76,7 +76,7 @@ final class ReviewData
      */
     public function toRow(): array
     {
-        $publishedAt = $this->publishedAt?->toDateTimeString();
+        $updatedAt = $this->updatedAt?->toDateTimeString();
 
         return [
             'external_id' => $this->externalId,
@@ -88,8 +88,7 @@ final class ReviewData
             'likes' => $this->likes,
             'dislikes' => $this->dislikes,
             'is_pinned' => $this->isPinned,
-            'published_at' => $publishedAt,
-            'source_updated_at' => $publishedAt,
+            'source_updated_at' => $updatedAt,
             'content_hash' => $this->contentHash(),
         ];
     }

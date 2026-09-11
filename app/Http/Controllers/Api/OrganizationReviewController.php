@@ -23,7 +23,7 @@ class OrganizationReviewController extends Controller
 
         $reviews = $organization->reviews()
             ->orderByDesc('is_pinned')
-            ->orderByDesc('published_at')
+            ->orderByDesc('source_updated_at')
             ->orderByDesc('id')
             ->paginate(perPage: self::PER_PAGE);
 

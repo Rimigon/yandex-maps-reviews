@@ -6,12 +6,12 @@ const props = defineProps({
     review: { type: Object, required: true },
 });
 
-const publishedAt = computed(() => {
-    if (!props.review.published_at) {
+const reviewDate = computed(() => {
+    if (!props.review.date) {
         return '';
     }
 
-    return new Date(props.review.published_at).toLocaleDateString('ru-RU', {
+    return new Date(props.review.date).toLocaleDateString('ru-RU', {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
@@ -40,7 +40,7 @@ const publishedAt = computed(() => {
                 </div>
                 <div class="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
                     <StarRating :rating="review.rating" size="sm" />
-                    <span>{{ publishedAt }}</span>
+                    <span>{{ reviewDate }}</span>
                 </div>
             </div>
         </header>

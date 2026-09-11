@@ -29,7 +29,9 @@ class ReviewResource extends JsonResource
             'likes' => $this->likes,
             'dislikes' => $this->dislikes,
             'is_pinned' => $this->is_pinned,
-            'published_at' => $this->published_at?->toIso8601String(),
+            // Дата отзыва: Яндекс отдаёт только updatedTime (время последнего
+            // изменения), отдельной даты создания в ответе нет.
+            'date' => $this->source_updated_at?->toIso8601String(),
         ];
     }
 }

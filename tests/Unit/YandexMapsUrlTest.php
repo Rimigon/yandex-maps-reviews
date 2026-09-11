@@ -86,4 +86,16 @@ class YandexMapsUrlTest extends TestCase
 
         YandexMapsUrl::parse($input);
     }
+
+    #[DataProvider('invalidUrls')]
+    public function test_в_сообщении_об_ошибке_показывает_то_что_ввёл_пользователь(string $input): void
+    {
+        try {
+            YandexMapsUrl::parse($input);
+            $this->fail('Ожидалась ошибка разбора ссылки');
+        } catch (InvalidYandexMapsUrlException $exception) {
+            // Схема дописывается только для разбора: в тексте ошибки её быть не должно.
+            $this->assertStringNotContainsString('https://'.$input, $exception->getMessage());
+        }
+    }
 }

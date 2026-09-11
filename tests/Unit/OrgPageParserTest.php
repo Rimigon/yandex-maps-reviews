@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Services\YandexMaps\Exceptions\BlockedException;
 use App\Services\YandexMaps\Exceptions\LayoutChangedException;
+use App\Services\YandexMaps\Exceptions\OrganizationNotFoundException;
 use App\Services\YandexMaps\Parsing\OrgPageParser;
 use PHPUnit\Framework\TestCase;
 
@@ -62,6 +63,25 @@ class OrgPageParserTest extends TestCase
         $this->expectExceptionMessageMatches('/state-view/');
 
         $this->parser->parse('<html><body><div class="organization-card"></div></body></html>', self::PAGE_URL);
+    }
+
+    public function test_отличает_отсутствующую_карточку_от_поломки_разметки(): void
+    {
+        // Яндекс отдаёт 200 и обычную страницу карт, если карточки нет:
+        // это не смена разметки, и сообщение об ошибке должно быть другим.
+        $this->expectException(OrganizationNotFoundException::class);
+
+        $this->parser->parse($this->fixture('org-not-found.html'), self::PAGE_URL);
+    }
+
+    public function test_ошибка_о_ненайденной_карточке_содержит_ссылку(): void
+    {
+        try {
+            $this->parser->parse($this->fixture('org-not-found.html'), self::PAGE_URL);
+            $this->fail('Ожидалась ошибка о ненайденной карточке');
+        } catch (OrganizationNotFoundException $exception) {
+            $this->assertStringContainsString('maps/org/surf_coffee_x_flow/69353267050', $exception->getMessage());
+        }
     }
 
     public function test_достаёт_первую_страницу_отзывов_из_состояния_страницы(): void

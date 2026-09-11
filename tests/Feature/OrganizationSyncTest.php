@@ -7,7 +7,9 @@ use App\Models\Organization;
 use App\Models\User;
 use App\Services\Sync\OrganizationSyncService;
 use App\Services\YandexMaps\Exceptions\BlockedException;
+use App\Services\YandexMaps\Exceptions\YandexMapsException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -89,6 +91,24 @@ class OrganizationSyncTest extends TestCase
         $this->assertSame(0, $snapshot->changes['reviews_added']);
         $this->assertSame(1, $snapshot->changes['reviews_updated']);
         $this->assertSame(60, $snapshot->changes['reviews_parsed']['to']);
+    }
+
+    public function test_в_первом_снимке_нет_дельты_рейтинга_сравнивать_не_с_чем(): void
+    {
+        // Так выглядит организация сразу после добавления: рейтинга ещё нет.
+        $organization = $this->organization();
+        $organization->forceFill(['rating' => null, 'ratings_total' => 0, 'reviews_total' => 0])->save();
+
+        $this->fakeYandex(totalReviews: 60);
+
+        app(OrganizationSyncService::class)->sync($organization);
+
+        $changes = $organization->snapshots()->first()->changes;
+
+        $this->assertNull($changes['rating']['from']);
+        $this->assertSame('4.90', $changes['rating']['to']);
+        $this->assertNull($changes['rating']['diff']);
+        $this->assertSame(60, $changes['reviews_added']);
     }
 
     public function test_снимки_показывают_что_изменилось_между_выгрузками(): void
@@ -184,6 +204,53 @@ class OrganizationSyncTest extends TestCase
                 && ! array_key_exists('sessionId', array_filter($query, static fn ($value) => $value === ''))
                 && isset($query['s'], $query['csrfToken'], $query['businessId']);
         });
+    }
+
+    public function test_карточка_без_отзывов_обрабатывается_как_пустая_а_не_как_ошибка(): void
+    {
+        $organization = $this->organization();
+
+        Http::fake([
+            'yandex.ru/maps/org/*' => Http::response(
+                str_replace(['"reviewCount":638', '"ratingCount":1231'], ['"reviewCount":0', '"ratingCount":0'], $this->pageHtml()),
+                200,
+            ),
+            'yandex.ru/maps/api/business/fetchReviews*' => Http::response([
+                'data' => [
+                    'params' => ['page' => 1, 'limit' => 50, 'count' => 0, 'totalPages' => 1],
+                    'reviews' => [],
+                ],
+            ], 200),
+        ]);
+
+        $result = app(OrganizationSyncService::class)->sync($organization);
+
+        $this->assertSame(SyncStatus::Completed, $organization->refresh()->sync_status);
+        $this->assertSame(0, $result->reviewsStored);
+        $this->assertSame(0, $result->reviews->total());
+        $this->assertSame(1, $result->pagesProcessed);
+        $this->assertNull($organization->sync_error);
+        $this->assertDatabaseCount('reviews', 0);
+    }
+
+    public function test_недоступная_страница_даёт_понятную_ошибку(): void
+    {
+        $organization = $this->organization();
+
+        Http::fake(fn () => throw new ConnectionException('Could not resolve host: yandex.ru'));
+
+        try {
+            app(OrganizationSyncService::class)->sync($organization);
+            $this->fail('Ожидалась ошибка соединения');
+        } catch (YandexMapsException $exception) {
+            $this->assertStringContainsString('Не удалось соединиться', $exception->getMessage());
+            $this->assertStringNotContainsString('Could not resolve', $exception->getMessage());
+        }
+
+        $organization->refresh();
+
+        $this->assertSame(SyncStatus::Failed, $organization->sync_status);
+        $this->assertNotNull($organization->sync_error);
     }
 
     public function test_блокировка_яндексом_не_выдаётся_за_пустой_список_отзывов(): void
